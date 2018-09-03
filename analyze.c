@@ -139,6 +139,7 @@ int GenerateLabel(char *payload){
 int SendDNSPacket(u_int16_t DNSid){
 	int sock;
 	struct sockaddr_in addr;
+	int disable = 1;
 	//char payload[MAX_PAYLOAD]; //= "//ラベルの始まり\x03\x77\x77\x77\x05\x61\x70\x70\x6c\x65\x03\x63\x6f\x6d\x00//ここまでがラベル\x00\x01\x00\x01\x00\x00\x00\x0a\x00\x04\x4a\x7d\xeb\x92";
 	char qd[] = "\x03\x77\x77\x77\x05\x61\x70\x70\x6c\x65\x03\x63\x6f\x6d\x00\x00\x01\x00\x01";
 	char an_[] = "\x00\x00\x01\x00\x01\x00\x00\x00\x0a\x00\x04\x4a\x7d\xeb\x92";
@@ -161,6 +162,9 @@ int SendDNSPacket(u_int16_t DNSid){
 	
 	//送信
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
+	if (setsockopt(sock, SOL_SOCKET, SO_NO_CHECK, (void*)&disable, sizeof(disable)) < 0) {
+		perror("setsockopt failed");
+	}
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(53);
 	addr.sin_addr.s_addr = inet_addr("192.168.11.7");
