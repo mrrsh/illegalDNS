@@ -1,6 +1,3 @@
-# illegalDNS
-http://gihyo.jp/book/2011/978-4-7741-4745-1/support のサンプルファイルを使用しています
-
 # 概要
 パケットキャプチャを行うソフトを改造して、DNSパケットを受信したときにパケットを返すプログラム  
 `analyze.c`の`AnalyzeDNS`関数と`SendDNSPacket`関数にてパケットを作成し、送信  
