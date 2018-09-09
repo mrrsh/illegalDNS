@@ -150,7 +150,7 @@ int SendDNSPacket(u_int16_t DNSid,u_int16_t dest){
 	char an_[] = "\xc0\x0c\x00\x01\x00\x01\x00\x00\x00\x0a\x00\x04\xd8\x3a\xc5\xa3";
 	
 	//パケット生成
-	fprintf(stdout,"TEST DNSPacket ID is %X\n",ntohs(DNSid));
+	//fprintf(stdout,"TEST DNSPacket ID is %X\n",ntohs(DNSid));
 	struct dnshdr sendhdr;
 	struct dnspacket_test send;
 	sendhdr.id = DNSid;
@@ -180,7 +180,7 @@ int SendDNSPacket(u_int16_t DNSid,u_int16_t dest){
 	addr.sin_family = AF_INET;
 	printf("%u\n",ntohs(dest));
 	addr.sin_port = dest;
-	addr.sin_addr.s_addr = inet_addr("192.168.11.15");
+	addr.sin_addr.s_addr = inet_addr("192.168.11.10");
 	//送信元の設定
 	srcaddr.sin_family = AF_INET;
     srcaddr.sin_addr.s_addr = htonl(INADDR_ANY);
